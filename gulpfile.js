@@ -6,7 +6,7 @@ var gulp = require('gulp')
 	,rename = require('gulp-rename')
 	,minifycss = require('gulp-minify-css')
 	,minifyhtml = require('gulp-minify-html')
-	,prcesshtml = require('gulp-prcesshtml')
+	,processhtml = require('gulp-processhtml')
 	,jshint = require('gulp-jshint')
 	,uglify = require('gulp-uglify')
 	,connect = require('gulp-connect')
@@ -16,10 +16,12 @@ paths = {
 	assets:'src/assets/**/*',
 	css:   'src/css/*.css',
 	libs:   [
-			'src/three/thres'
-	]
-	js: 	['src/js/*.js']
-	dist:    './dist'
+			'src/three/three.js',
+			'src/three/renderers/CanvasRenderer.js',
+			'src/three/renderers/Projector.js'
+	],
+	js: 	['src/js/*.js'],
+	dist:    './dist/'
 
 }
 
@@ -31,6 +33,79 @@ gulp.task('clean',function(){
 	return steam;
 });
 
-gulp.task('uglify',['clean','lint']function(){
-	
-})
+gulp.task('copy',['clean'],function(){
+	gulp.src(paths.assets)
+	.pipe(gulp.dest(paths.dist + 'assets'))
+	.on('error',gutil.log);
+});
+
+gulp.task('uglify',['clean','lint'],function(){
+	var srcs = [paths.libs[0],
+	paths.libs[1],
+	paths.libs[2],
+	'src/js/main.js'
+	];
+
+	gulp.src(srcs)
+	.pipe(sourcemaps.init())
+	.pipe(concat('main.min.js'))
+	.pipe(sourcemaps.write())
+	.pipe(uglify({outSourceMaps:true}))
+	.pipe(gulp.dest(paths.dist))
+	.on('error',gutil.log);
+});
+
+gulp.task('minifycss',['clean'],function(){
+	gulp.src(paths.css)
+	.pipe(minifycss({
+		keepSpecialComments: false,
+		removeEmpty:true
+	}))
+	.pipe(rename({suffix:'.min'}))
+	.pipe(gulp.dest(paths.dist))
+	.on('error',gutil.log);
+});
+
+gulp.task('processhtml',['clean'],function(){
+	gulp.src('src/index.html')
+	.pipe(processhtml())
+	.pipe(gulp.dest(paths.dist))
+	.on('error',gutil.log);
+});
+
+gulp.task('minifyhtml',['clean'],function(){
+	gulp.src('src/index.html')
+	.pipe(minifyhtml())
+	.pipe(gulp.dest(paths.dist))
+	.on('error',gutil.log);
+});
+
+gulp.task('lint',function(){
+	gulp.src(paths.js)
+	.pipe(jshint('.jshint'))
+	.pipe(jshint.reporter('default'))
+	.on('error',gutil.log);
+});
+
+gulp.task('html',function(){
+	gulp.src('src/*.html')
+	.pip(connect.reload())
+	.on('error',gutil.log);
+});
+
+gulp.task('connect',function(){
+	connect.server({
+		root:[__dirname + '/src'],
+		port:9000,
+		livereload:true,
+	});
+});
+
+gulp.task('watch',function(){
+	gulp.watch(paths.js,['lint']);
+	gulp.watch(['./src/index.html',paths.css,paths.js],['html']);
+
+});
+
+gulp.task('default',['connect','watch']);
+gulp.task('build',['copy','uglify','minifycss','processhtml','minifyhtml']);
